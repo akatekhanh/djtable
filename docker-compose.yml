@@ -1,0 +1,61 @@
+version: '3'
+
+services:
+  pruebaNginx:
+    image: nginx:latest
+    container_name: pruebaNginx
+    ports:
+      - "8000:80"
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d
+      - ./src:/src
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    depends_on:
+      - prueba
+
+  prueba:
+    build: .
+    container_name: prueba
+    # command: uwsgi --socket :8000 --module app.wsgi --py-autoreload 1 --logto /tmp/mylog.log
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn prueba.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - ./src:/src
+      - ./src:/static
+    expose:
+      - "8000"
+    ports:
+      - "8080:8000"
+    depends_on:
+      - db
+  
+  db:
+    # image: mysql:5.7
+    # command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    # ports:
+    #   - "3306:3306"
+    # environment:
+    #   MYSQL_ROOT_USER: root
+    #   MYSQL_ROOT_PASSWORD: root_pws
+    #   MYSQL_DATABASE: djtable
+    #   # MYSQL_PASSWORD: root
+    # volumes:
+    #   - ./mysql:/var/lib/mysql
+    #   - ./sql:/docker-entrypoint-initdb.d
+    
+    build: docker/
+    container_name: mysql
+    ports:
+      - 3306:3306
+    volumes:
+      - data-volume:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_USER: root
+      MYSQL_ROOT_PASSWORD: root_pws
+      MYSQL_DATABASE: djtable
+      # MYSQL_PASSWORD: root
+    healthcheck:
+      test: "exit 0"
+  
+volumes:
+  data-volume:
+
